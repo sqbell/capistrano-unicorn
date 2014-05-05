@@ -40,7 +40,7 @@ module CapistranoUnicorn
     # Check if a remote process exists using its pid file
     #
     def remote_process_exists?(pid_file)
-      test("[ -e #{pid_file} ]") && execute("#{try_unicorn_user.join(' ')} kill -0 `cat #{pid_file}` > /dev/null 2>&1")
+      execute(*try_unicorn_user,  'kill', '-0', get_unicorn_pid) if within(fetch(:app_path)) { test('[', '-e', pid_file, ']') }
     end
 
     # Stale Unicorn process pid file
@@ -64,13 +64,17 @@ module CapistranoUnicorn
     # Get unicorn master process PID (using the shell)
     #
     def get_unicorn_pid(pid_file=fetch(:unicorn_pid))
-      capture "cat #{pid_file}"
+      within fetch(:app_path) do
+        capture :cat, pid_file
+      end
     end
 
     # Get unicorn master (old) process PID
     #
     def get_old_unicorn_pid
-      get_unicorn_pid(old_unicorn_pid)
+      within fetch(:app_path) do
+        get_unicorn_pid(old_unicorn_pid)
+      end
     end
 
     # Send a signal to a unicorn master processes
@@ -113,7 +117,7 @@ module CapistranoUnicorn
         fail "Config file for \"#{fetch(:unicorn_env)}\" environment was not found at either \"#{fetch(:unicorn_config_file_path)}\" or \"#{fetch(:unicorn_config_stage_file_path)}\""
       end
 
-      if test("[ -e #{fetch(:unicorn_pid)} ]")
+      if test('[', '-e', fetch(:unicorn_pid), ']')
         if unicorn_is_running?
           puts 'Unicorn is already running!'
           return
