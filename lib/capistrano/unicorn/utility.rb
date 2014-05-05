@@ -40,7 +40,7 @@ module CapistranoUnicorn
     # Check if a remote process exists using its pid file
     #
     def remote_process_exists?(pid_file)
-      test("[ -e #{pid_file} ]") && execute("#{try_unicorn_user} kill -0 `cat #{pid_file}` > /dev/null 2>&1")
+      execute(*try_unicorn_user,  'kill', '-0', get_unicorn_pid) if within(fetch(:app_path)) { test('[', '-e', pid_file, ']') }
     end
 
     # Stale Unicorn process pid file
@@ -64,20 +64,24 @@ module CapistranoUnicorn
     # Get unicorn master process PID (using the shell)
     #
     def get_unicorn_pid(pid_file=fetch(:unicorn_pid))
-      capture "cat #{pid_file}"
+      within fetch(:app_path) do
+        capture :cat, pid_file
+      end
     end
 
     # Get unicorn master (old) process PID
     #
     def get_old_unicorn_pid
-      get_unicorn_pid(old_unicorn_pid)
+      within fetch(:app_path) do
+        get_unicorn_pid(old_unicorn_pid)
+      end
     end
 
     # Send a signal to a unicorn master processes
     #
     def unicorn_send_signal(signal, pid=get_unicorn_pid)
       sig_prefix = Integer === signal ? '-' : '-s '
-      execute try_unicorn_user, 'kill', sig_prefix, signal, pid
+      execute *try_unicorn_user, 'kill', sig_prefix, signal, pid
     end
 
     # Run a command as the :unicorn_user user if :unicorn_user is a string.
@@ -85,9 +89,9 @@ module CapistranoUnicorn
     #
     def try_unicorn_user
       if unicorn_user = fetch(:unicorn_user)
-        "sudo -u #{unicorn_user}"
+        [:sudo, '-Eu', unicorn_user]
       else
-        ''
+        []
       end
     end
 
@@ -113,7 +117,7 @@ module CapistranoUnicorn
         fail "Config file for \"#{fetch(:unicorn_env)}\" environment was not found at either \"#{fetch(:unicorn_config_file_path)}\" or \"#{fetch(:unicorn_config_stage_file_path)}\""
       end
 
-      if test("[ -e #{fetch(:unicorn_pid)} ]")
+      if test('[', '-e', fetch(:unicorn_pid), ']')
         if unicorn_is_running?
           puts 'Unicorn is already running!'
           return
@@ -126,7 +130,7 @@ module CapistranoUnicorn
 
       within fetch(:app_path) do
         with rails_env: fetch(:rails_env), bundle_gemfile: fetch(:bundle_gemfile) do
-          execute :bundle, 'exec', fetch(:unicorn_bin), '-c', unicorn_config_file_path, '-E', fetch(:unicorn_rack_env), '-D', fetch(:unicorn_options)
+          execute *try_unicorn_user, :bundle, 'exec', fetch(:unicorn_bin), '-c', unicorn_config_file_path, '-E', fetch(:unicorn_rack_env), '-D', fetch(:unicorn_options)
         end
       end
     end
