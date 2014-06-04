@@ -40,7 +40,11 @@ module CapistranoUnicorn
     # Check if a remote process exists using its pid file
     #
     def remote_process_exists?(pid_file)
-      execute(*try_unicorn_user,  'kill', '-0', get_unicorn_pid) if within(fetch(:app_path)) { test('[', '-e', pid_file, ']') }
+      begin
+        execute(*try_unicorn_user,  'kill', '-0', get_unicorn_pid) if within(fetch(:app_path)) { test('[', '-e', pid_file, ']') }
+      rescue SSHKit::Command::Failed => e
+        false
+      end
     end
 
     # Stale Unicorn process pid file
