@@ -124,55 +124,6 @@ To execute test suite run:
 bundle exec rake test
 ```
 
-### Multistage
-
-The issue here is that capistrano loads default configuration and then
-executes your staging task and overrides previously defined
-variables. The default environment before executing your stage task is
-set to `:production`, so it will use a wrong environment unless you
-take steps to ensure that `:rails_env` and `:unicorn_env` are
-set correctly.
-
-Let's say you have a scenario involving two deployment stages: staging
-and production.  You’ll need to add `config/deploy/staging.rb` and
-`config/deploy/production.rb` files.  However, it makes sense to
-adhere to DRY and avoid duplicating lines between the two files.  So
-it would be nicer to keep common settings in `config/deploy.rb`, and
-only put stuff in each staging definition file which is really
-specific to that staging environment.  Fortunately this can be done
-using the [lazy evaluation form of `set`](https://github.com/capistrano/capistrano/wiki/2.x-DSL-Configuration-Variables-Set).
-
-So `config/deploy.rb` file would contain something like:
-
-```ruby
-set :stages, %w(production staging)
-set :default_stage, "staging"
-require 'capistrano/ext/multistage'
-
-role(:web) { domain }
-role(:app) { domain }
-role(:db, :primary => true) { domain }
-
-set(:deploy_to)    { "/home/#{user}/#{application}/#{fetch :rails_env}" }
-set(:current_path) { File.join(deploy_to, current_dir) }
-```
-
-Then `config/deploy/production.rb` would contain something like:
-
-```ruby
-set :domain,      "app.mydomain.com"
-set :rails_env,   "production"
-```
-
-and `config/deploy/staging.rb` would only need to contain something like:
-
-```ruby
-set :domain,      "app.staging.mydomain.com"
-set :rails_env,   "staging"
-```
-
-Nice and clean!
-
 ## License
 
 See LICENSE file for details.
